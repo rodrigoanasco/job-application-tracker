@@ -1,0 +1,4 @@
+Thank you for applying to Acme for the Software Engineer position.
+
+Unfortunately, we have decided not to move forward with your application at
+this time. We appreciate your interest and wish you the best in your search.
