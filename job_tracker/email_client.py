@@ -15,6 +15,18 @@ from .config import AppConfig, keyword_match
 from .models import EmailRecord
 
 
+WEAK_BODY_KEYWORDS = {
+    "application",
+    "applied",
+    "job",
+    "jobs",
+    "position",
+    "role",
+    "recruiter",
+    "recruiting",
+}
+
+
 class _HTMLTextExtractor(HTMLParser):
     def __init__(self) -> None:
         super().__init__()
@@ -65,12 +77,34 @@ class ImapEmailClient:
         return records
 
 
-def filter_relevant_emails(emails: Iterable[EmailRecord], keywords: list[str]) -> list[EmailRecord]:
+def filter_relevant_emails(
+    emails: Iterable[EmailRecord],
+    keywords: list[str],
+    exclude_keywords: list[str] | None = None,
+) -> list[EmailRecord]:
     return [
         email
         for email in emails
-        if keyword_match([email.subject, email.from_address, email.body], keywords)
+        if is_relevant_email(email, keywords, exclude_keywords or [])
     ]
+
+
+def is_relevant_email(email: EmailRecord, keywords: list[str], exclude_keywords: list[str]) -> bool:
+    subject_from = f"{email.subject}\n{email.from_address}"
+    body_excerpt = email.body[:2500]
+
+    if _looks_like_job_alert(subject_from, exclude_keywords):
+        return False
+    if keyword_match([subject_from], keywords):
+        return True
+
+    body_keywords = [keyword for keyword in keywords if keyword not in WEAK_BODY_KEYWORDS]
+    return keyword_match([body_excerpt], body_keywords)
+
+
+def _looks_like_job_alert(subject_from: str, exclude_keywords: list[str]) -> bool:
+    lowered = subject_from.lower()
+    return any(keyword in lowered for keyword in exclude_keywords)
 
 
 def email_record_from_bytes(raw_bytes: bytes) -> EmailRecord:

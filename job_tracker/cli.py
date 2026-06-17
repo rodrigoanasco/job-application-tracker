@@ -83,9 +83,14 @@ def sync(args: argparse.Namespace) -> int:
     print(f"Fetching emails since {since.date().isoformat()} from {config.imap_mailbox}...")
     emails = ImapEmailClient(config).fetch_since(since, limit=limit)
     new_emails = [email for email in emails if not state.is_processed(email.message_id)]
-    relevant_emails = new_emails if args.include_all else filter_relevant_emails(new_emails, config.email_keywords)
+    relevant_emails = (
+        new_emails
+        if args.include_all
+        else filter_relevant_emails(new_emails, config.email_keywords, config.email_exclude_keywords)
+    )
 
     print(f"Fetched {len(emails)} emails, {len(new_emails)} new, {len(relevant_emails)} selected for analysis.")
+    _print_selected_preview(relevant_emails)
 
     extractor = JobUpdateExtractor(config)
     updates = []
@@ -146,15 +151,26 @@ def _with_ollama_disabled(config: AppConfig) -> AppConfig:
     return AppConfig(**values)
 
 
+def _print_selected_preview(emails) -> None:
+    if not emails:
+        return
+
+    print("Selected email preview:")
+    for email in emails[:10]:
+        print(f"  - {email.date.date().isoformat()} | {email.subject[:100]}")
+    if len(emails) > 10:
+        print(f"  ... {len(emails) - 10} more")
+
+
 def _print_updates(updates) -> None:
     if not updates:
         print("No job application updates detected.")
         return
 
     for update in updates:
-        event_date = update.event_date.isoformat() if update.event_date else "unknown date"
+        event_date = update.event_date or update.source_date.date()
         print(
-            f"{event_date} | {update.company} | {update.role} | "
+            f"{event_date.isoformat()} | {update.company} | {update.role} | "
             f"{update.status} | confidence={update.confidence:.2f}"
         )
         if update.notes:

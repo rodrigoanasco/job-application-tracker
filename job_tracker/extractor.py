@@ -17,6 +17,8 @@ class JobUpdateExtractor:
         self.config = config
         self.rules = RuleBasedExtractor(config.email_keywords)
         self.ollama = OllamaExtractor(config) if config.use_ollama else None
+        self._ollama_failures = 0
+        self._max_ollama_failures = 2
 
     def extract(self, email: EmailRecord) -> list[ApplicationUpdate]:
         if self.ollama is None:
@@ -26,6 +28,10 @@ class JobUpdateExtractor:
             return self.ollama.extract(email)
         except OllamaUnavailableError as error:
             print(f"Ollama unavailable, using rule-based extraction for this email: {error}")
+            self._ollama_failures += 1
+            if self._ollama_failures >= self._max_ollama_failures:
+                print("Ollama failed repeatedly, using rule-based extraction for the rest of this run.")
+                self.ollama = None
             return self.rules.extract(email)
         except ValueError as error:
             print(f"Ollama returned invalid JSON, using rule-based extraction for this email: {error}")
@@ -48,7 +54,7 @@ class OllamaExtractor:
             "model": self.model,
             "stream": False,
             "format": "json",
-            "options": {"temperature": 0},
+            "options": {"temperature": 0, "num_ctx": 4096},
             "messages": [
                 {
                     "role": "system",
@@ -71,7 +77,7 @@ class OllamaExtractor:
         try:
             with urllib.request.urlopen(request, timeout=self.timeout) as response:
                 raw = response.read().decode("utf-8")
-        except (urllib.error.URLError, TimeoutError) as error:
+        except (urllib.error.URLError, OSError, TimeoutError) as error:
             raise OllamaUnavailableError(str(error)) from error
 
         data = json.loads(raw)
@@ -236,9 +242,10 @@ class RuleBasedExtractor:
 
 
 def _build_prompt(email: EmailRecord) -> str:
-    body = email.body[:8000]
+    body = email.body[:3500]
     return f"""
 Analyze this email and decide whether it contains a job application update.
+Ignore job alerts, recommended jobs, job newsletters, and lists of openings.
 
 Allowed status values:
 - applied: the user submitted an application

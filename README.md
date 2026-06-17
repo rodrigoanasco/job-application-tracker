@@ -49,6 +49,7 @@ Useful options:
 
 ```powershell
 python -m job_tracker.cli sync --dry-run
+python -m job_tracker.cli sync --dry-run --since 2026-06-01 --limit 50
 python -m job_tracker.cli sync --since 2026-06-01
 python -m job_tracker.cli sync --no-ollama
 python -m job_tracker.cli sync --include-all
@@ -57,6 +58,10 @@ python -m job_tracker.cli sync --include-all
 The default run fetches recent emails, filters them with job-related keywords,
 asks Ollama to extract structured updates, writes new events to Excel, and saves
 processed message IDs in `data/state.json`.
+
+For the first mailbox test, use `--dry-run --limit 50` so you can confirm the
+filter is picking real application updates instead of job alerts before you run a
+larger sync.
 
 ## Analyze A Saved Email Or Text File
 

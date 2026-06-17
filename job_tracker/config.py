@@ -57,6 +57,7 @@ class AppConfig:
     lookback_days: int
     max_emails: int
     email_keywords: list[str]
+    email_exclude_keywords: list[str]
     use_ollama: bool
     ollama_base_url: str
     ollama_model: str
@@ -71,9 +72,17 @@ class AppConfig:
 
         data_dir = Path(os.getenv("DATA_DIR", "data"))
         default_keywords = (
-            "application,applied,interview,recruiter,recruiting,position,role,"
-            "assessment,coding challenge,take-home,offer,unfortunately,next steps,"
-            "thank you for applying"
+            "thank you for applying,thanks for applying,received your application,"
+            "application has been received,your application,application status,"
+            "interview,schedule a call,phone screen,assessment,coding challenge,"
+            "take-home,technical exercise,offer,unfortunately,not moving forward,"
+            "no longer under consideration,next steps"
+        )
+        default_exclude_keywords = (
+            "jobs for you,more jobs in,job alert,recommended job,recommended jobs,"
+            "apply now,new jobs,similar jobs,based on your profile,because you viewed,"
+            "who is hiring,latest jobs,job recommendations,hiring now,weekly job,"
+            "saved search alert"
         )
 
         return cls(
@@ -85,10 +94,11 @@ class AppConfig:
             lookback_days=env_int("LOOKBACK_DAYS", 45),
             max_emails=env_int("MAX_EMAILS", 200),
             email_keywords=split_csv(os.getenv("EMAIL_KEYWORDS", default_keywords)),
+            email_exclude_keywords=split_csv(os.getenv("EMAIL_EXCLUDE_KEYWORDS", default_exclude_keywords)),
             use_ollama=env_bool("USE_OLLAMA", True),
             ollama_base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
             ollama_model=os.getenv("OLLAMA_MODEL", "llama3.1:8b"),
-            ollama_timeout_seconds=env_int("OLLAMA_TIMEOUT_SECONDS", 45),
+            ollama_timeout_seconds=env_int("OLLAMA_TIMEOUT_SECONDS", 120),
             data_dir=data_dir,
             output_excel=Path(os.getenv("OUTPUT_EXCEL", str(data_dir / "job_applications.xlsx"))),
             state_file=Path(os.getenv("STATE_FILE", str(data_dir / "state.json"))),
